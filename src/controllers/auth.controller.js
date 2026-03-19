@@ -3,7 +3,7 @@ import { ApiResponse } from "../utils/Api_response.js";
 import { ApiError } from "../utils/Api_Err.js";
 import { asyncHandler } from "../utils/async_Handler.js";
 import { emailVerificationMail, sendEmail } from "../utils/mail.js";
-import{generateForgotPasswordToken} from "../utils/token.js"; 
+// import{generateForgotPasswordToken} from "../utils/token.js"; 
 
 const generateTokens = async (user) => {
   try {
@@ -11,6 +11,9 @@ const generateTokens = async (user) => {
     const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    user.AccessToken = accessToken;
     await user.save({ validateBeforeSave: false });
 
     return { accessToken, refreshToken };
@@ -48,6 +51,7 @@ const registerUser = asyncHandler(async (req, res) => {
   //     `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${user._id}`
   //   )
   // });
+
 
   return res.status(201).json(
     new ApiResponse(
@@ -93,7 +97,6 @@ const login = asyncHandler(async (req, res) => {
     secure: true,
     sameSite: "strict",
   };
-  // console.log("Login Secret:", process.env.ACCESS_TOKEN_SECRET);
   return res
     .status(200)
     .cookie("accessToken", accessToken, options)

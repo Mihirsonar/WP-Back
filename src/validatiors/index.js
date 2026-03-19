@@ -1,4 +1,5 @@
 import {body} from 'express-validator';
+import { AvailableRoles } from '../utils/constants.js';
 
  const registerValidation=()=>{
 return [
@@ -28,4 +29,24 @@ const forgotPasswordValidation = ()=>{
         body("email").isEmail().withMessage("Invalid Email."),
     ]
 }
-export {registerValidation,userLoginValidation,changePasswordValidation,forgotPasswordValidation}
+
+const createProjectValidation = ()=>{
+    return [
+        body("name").notEmpty().withMessage("Project name is required."),
+        body("description").optional().isString().withMessage("Description must be a string."),
+    ]
+}
+
+const addMemberValidation = ()=>{
+    return [
+        body("email").isEmail().withMessage("Invalid Email."),
+        body("role").isIn(AvailableRoles).withMessage("Role must be one of admin, editor, or viewer."),
+    ]
+}
+
+const resetPasswordValidation = ()=>{
+    return [
+        body("newPassword").isLength({ min: 6 }).withMessage("New password must be at least 6 characters long."),
+    ]
+}
+export {registerValidation,userLoginValidation,changePasswordValidation,forgotPasswordValidation,createProjectValidation,addMemberValidation,resetPasswordValidation}

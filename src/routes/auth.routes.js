@@ -4,8 +4,8 @@ import { validate } from "../middlewares/validator.middleware.js";
 import { registerValidation ,userLoginValidation} from "../validatiors/index.js";
 import {verifyJWT} from "../middlewares/auth.middleware.js"
 import { forgotPassword, changePassword, getCurrentUser,resetPassword} from "../controllers/auth.controller.js";
-import { changePasswordValidation, forgotPasswordValidation } from "../validatiors/index.js";
-import { resetPasswordValidation } from "../validatiors/resetPassword.validation.js";
+import { changePasswordValidation, forgotPasswordValidation,resetPasswordValidation } from "../validatiors/index.js";
+// import { resetPasswordValidation } from "../validatiors/resetPassword.validation.js";
 
 const router = Router();
 

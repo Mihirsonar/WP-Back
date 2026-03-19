@@ -27,6 +27,9 @@ const userSchema = new mongoose.Schema({
     RefreshToken: {
         type: String,
     },
+    AccessToken:{
+        type: String,
+    },
     forgotPasswordToken: {
         type: String,
     },
