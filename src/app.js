@@ -14,13 +14,13 @@ app.use(cookieparser());
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://workpilotbackend.vercel.app/api/v1"
+    "https://workpilotbackend.vercel.app"
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true
 }));
 
-app.options("*", cors());
+// app.options("*", cors());
 
 app.use('/api/v1/healthcheck', healthCheckRouter);
 app.use('/api/v1/auth', authRouter);
