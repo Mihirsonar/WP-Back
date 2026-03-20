@@ -25,7 +25,7 @@ app.use(async (req, res, next) => {
   next();
 });
 app.use('/api/v1/healthcheck', healthCheckRouter);
-app.use('/auth', authRouter);
+app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/projects', projectRouter);
 app.use('/api/v1/projects', taskRouter);
 
