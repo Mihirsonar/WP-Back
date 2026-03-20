@@ -9,7 +9,7 @@ import { changePasswordValidation, forgotPasswordValidation,resetPasswordValidat
 
 const router = Router();
 
-router.route('/register').post(registerValidation(validate), registerUser);
+router.route("/register").post(registerValidation(validate), registerUser);
 router.route("/login").post(userLoginValidation(validate),login);
 router.route("/forgot-password").post(forgotPasswordValidation(validate),forgotPassword);
 router.route("/reset-password/:id/:token").post(resetPasswordValidation(validate),resetPassword);
