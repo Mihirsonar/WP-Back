@@ -42,6 +42,7 @@ const registerUser = asyncHandler(async (req, res) => {
     isEmailVerified: false,
   });
 
+  const accessToken = user.generateAuthToken();
   // Send email BEFORE response
   // await sendEmail({
   //   email: user.email,
@@ -52,8 +53,13 @@ const registerUser = asyncHandler(async (req, res) => {
   //   )
   // });
 
-
-  return res.status(201).json(
+  const options = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+  };
+  return res.status(201).cookie("accessToken", accessToken, options)
+  .json(
     new ApiResponse(
       201,
       "User registered successfully. Please verify email.",
