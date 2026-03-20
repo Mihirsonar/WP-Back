@@ -1,7 +1,7 @@
 // import dotenv from 'dotenv';
 // dotenv.config();
-import app from './app.js';
-import connectDB from './db/connect.js';
+import app from '../src/app.js';
+import connectDB from '../src/db/connect.js';
 import serverless from 'serverless-http';
 
 // const PORT = process.env.PORT || 3000;
