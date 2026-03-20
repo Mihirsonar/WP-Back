@@ -12,8 +12,15 @@ app.use(express.json());
 app.use(cookieparser());
 
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-})); 
+  origin: [
+    "http://localhost:5173",
+    // "https://your-frontend.vercel.app" 
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  credentials: true
+}));
+
+app.options("*", cors());
 
 app.use('/api/v1/healthcheck', healthCheckRouter);
 app.use('/api/v1/auth', authRouter);
