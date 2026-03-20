@@ -14,7 +14,7 @@ app.use(cookieparser());
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    // "https://your-frontend.vercel.app" 
+    "https://workpilotbackend.vercel.app/api/v1"
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true
