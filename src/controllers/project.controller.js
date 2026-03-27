@@ -244,8 +244,8 @@ const getProjectMembers = asyncHandler (async (req,res)=>{
     .json(
         new ApiResponse(
             200,
+            "Project members fetched Succcefully!!!",
             projectMembers,
-            "Project members fetched Succcefully!!!"
         )
     )
 }); 
