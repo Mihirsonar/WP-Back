@@ -116,6 +116,15 @@ const getProjectsById = asyncHandler(async (req, res) => {
           }
         ]
       }
+    },
+    {
+      $project: {
+        _id: 1,
+        name: 1,
+        description: 1,
+        createdAt: 1,
+        members: 1
+      }
     }
   ]);
 
