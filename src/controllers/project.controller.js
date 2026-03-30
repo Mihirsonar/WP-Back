@@ -83,53 +83,49 @@ const getProjects = asyncHandler(async (req, res) => {
   );
 });
 
-const getProjectsById = asyncHandler (async (req,res)=>{
-    const {projectId} = req.params;
+const getProjectsById = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
 
-    const project = await Project.aggregate([
-  {
-    $match: {
-      _id: new mongoose.Types.ObjectId(projectId)
-    }
-  },
-  {
-    $lookup: {
-      from: "projectmembers",
-      localField: "_id",
-      foreignField: "project",
-      as: "members",
-      pipeline: [
-        {
-          $lookup: {
-            from: "users",
-            localField: "user",
-            foreignField: "_id",
-            as: "user"
+  const project = await Project.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(projectId)
+      }
+    },
+    {
+      $lookup: {
+        from: "projectmembers",
+        localField: "_id",
+        foreignField: "project",
+        as: "members",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "user",
+              foreignField: "_id",
+              as: "user"
+            }
+          },
+          { $unwind: "$user" },
+          {
+            $project: {
+              _id: "$user._id",
+              username: "$user.username"
+            }
           }
-        },
-        { $unwind: "$user" },
-        {
-          $project: {
-            _id: "$user._id",
-            username: "$user.username"
-          }
-        }
-      ]
+        ]
+      }
     }
+  ]);
+
+  if (!project.length) {
+    throw new ApiError(404, "Project not found...");
   }
-]);
-    if(!project){
-        throw new ApiError(404,"Project not found...")
-    }
-    return res
-    .status (200)
-    .json(
-        new ApiResponse(
-            200,
-            "Project fetched Succcefully!!!",
-            project,
-        )
-    )
+
+  return res.status(200).json(
+    new ApiResponse(200, project[0], "Project fetched successfully!")
+  );
 });
 
 const creatProject = asyncHandler(async (req, res) => {
