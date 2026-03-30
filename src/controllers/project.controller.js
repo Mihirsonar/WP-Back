@@ -133,7 +133,7 @@ const getProjectsById = asyncHandler(async (req, res) => {
   }
 
   return res.status(200).json(
-    new ApiResponse(200, project[0], "Project fetched successfully!")
+    new ApiResponse(200, "Project fetched successfully!", project[0])
   );
 });
 
