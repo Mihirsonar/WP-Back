@@ -82,33 +82,35 @@ const getProjectsById = asyncHandler (async (req,res)=>{
     )
 });
 
-const creatProject = asyncHandler (async (req,res)=>{
-    const {name,description} = req.body
+const creatProject = asyncHandler(async (req, res) => {
+  const { name, description, members = [] } = req.body;
 
-    const project =  await Project.create({
-        name,
-        description,
-        createdBy : new mongoose.Types.ObjectId(req.user._id)
-    });
-    // console.log("Created Project:", project);
+  const project = await Project.create({
+    name,
+    description,
+    createdBy: new mongoose.Types.ObjectId(req.user._id)
+  });
 
-    await ProjectMember.create({
-        user : new mongoose.Types.ObjectId(req.user._id),
-        project : new mongoose.Types.ObjectId(project._id),
-        role:USerRoleEnum.ADMIN
-    })
+ 
+  await ProjectMember.create({
+    user: req.user._id,
+    project: project._id,
+    role: USerRoleEnum.ADMIN
+  });
 
-    // console.log("Project Member Created for User:", req.user._id, "with Role:", USerRoleEnum.ADMIN);
+  const memberDocs = members.map(userId => ({
+    user: new mongoose.Types.ObjectId(userId),
+    project: project._id,
+    role: USerRoleEnum.MEMBER
+  }));
 
-    return res
-    .status (201)
-    .json(
-        new ApiResponse(
-            201,
-            project,
-            "Project Created Succcefully!!!"
-        )
-    )
+  if (memberDocs.length > 0) {
+    await ProjectMember.insertMany(memberDocs);
+  }
+
+  return res.status(201).json(
+    new ApiResponse(201, project, "Project Created Successfully!")
+  );
 });
 
 const updateProject = asyncHandler (async (req,res)=>{
