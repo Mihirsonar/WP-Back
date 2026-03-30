@@ -5,8 +5,8 @@ export const getAllusers = async (req,res)=>{
         const users = await User.find({},"-password -accessToken -refreshToken");
 
         res.status(200).json({
-            count:users.length,
-            users
+            users,
+            count:users.length
         })
     } catch (error) {
         console.error("Error While fetching Users",error)
