@@ -21,13 +21,32 @@ const getProjects = asyncHandler(async (req, res) => {
         as: "project",
         pipeline: [
           {
-            $lookup: {
-              from: "projectmembers",
-              localField: "_id",
-              foreignField: "project",
-              as: "projectmembers"
-            }
-          },
+  $lookup: {
+    from: "projectmembers",
+    localField: "_id",
+    foreignField: "project",
+    as: "projectmembers",
+    pipeline: [
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "user"
+        }
+      },
+      {
+        $unwind: "$user"
+      },
+      {
+        $project: {
+          _id: "$user._id",
+          username: "$user.username"
+        }
+      }
+    ]
+  }
+},
           {
             $addFields: {
               totalMembers: {
@@ -47,6 +66,7 @@ const getProjects = asyncHandler(async (req, res) => {
         name: "$project.name",
         description: "$project.description",
         totalMembers: "$project.totalMembers",
+        members: "$project.projectmembers",
         createdAt: "$project.createdAt",
         role: 1
       }
