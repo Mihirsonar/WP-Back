@@ -72,18 +72,30 @@ const createTask = asyncHandler(async (req, res) => {
 // });
 
 const updateTask = asyncHandler(async (req, res) => {
-
   const { taskId } = req.params;
-  const { status } = req.body;
+
+  const { status, title, description, assignedTo } = req.body;
+
+  // Build update object dynamically
+  const updateFields = {};
+
+  if (status) updateFields.status = status;
+  if (title) updateFields.title = title;
+  if (description) updateFields.description = description;
+  if (assignedTo) updateFields.assignedTo = assignedTo;
 
   const task = await Task.findByIdAndUpdate(
     taskId,
-    { status },
+    updateFields,
     { new: true }
-  );
+  ).populate("assignedTo", "username"); // ✅ important
+
+  if (!task) {
+    throw new ApiError(404, "Task not found");
+  }
 
   return res.status(200).json(
-    new ApiResponse(200, task, "Task updated")
+    new ApiResponse(200, task, "Task updated successfully")
   );
 });
 const deleteTask = asyncHandler(async (req, res) => {
