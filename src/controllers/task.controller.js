@@ -54,50 +54,50 @@ const createTask = asyncHandler(async (req, res) => {
     return res.status(201).json(new ApiResponse(201, "Task created successfully👍🏻👍🏻", task));
 });
 
-// const updateTask = asyncHandler(async (req, res) => {
-//         const { taskId } = req.params;
-//         const { title, description, status, assignedTo } = req.body;
-
-//         const task = await Task.findById(taskId);
-//         if (!task) {
-//             throw new ApiError(404, "Task not found");
-//         }
-//         if (title) task.title = title;
-//         if (description) task.description = description;
-//         if (status) task.status = status;
-//         if (assignedTo) task.assignedTo = new mongoose.Types.ObjectId(assignedTo);
-
-//         await task.save();
-//         return res.status(200).json(new ApiResponse(200, task, "Task updated successfully👍🏻👍🏻"));
-// });
-
 const updateTask = asyncHandler(async (req, res) => {
-  const { taskId } = req.params;
+        const { taskId } = req.params;
+        const { title, description, status, assignedTo } = req.body;
 
-  const { status, title, description, assignedTo } = req.body;
+        const task = await Task.findById(taskId);
+        if (!task) {
+            throw new ApiError(404, "Task not found");
+        }
+        if (title) task.title = title;
+        if (description) task.description = description;
+        if (status) task.status = status;
+        if (assignedTo) task.assignedTo = new mongoose.Types.ObjectId(assignedTo);
 
-  // Build update object dynamically
-  const updateFields = {};
-
-  if (status) updateFields.status = status;
-  if (title) updateFields.title = title;
-  if (description) updateFields.description = description;
-  if (assignedTo) updateFields.assignedTo = assignedTo;
-
-  const task = await Task.findByIdAndUpdate(
-    taskId,
-    updateFields,
-    { new: true }
-  ).populate("assignedTo", "username"); // ✅ important
-
-  if (!task) {
-    throw new ApiError(404, "Task not found");
-  }
-
-  return res.status(200).json(
-    new ApiResponse(200, task, "Task updated successfully")
-  );
+        await task.save();
+        return res.status(200).json(new ApiResponse(200, task, "Task updated successfully👍🏻👍🏻"));
 });
+
+// const updateTask = asyncHandler(async (req, res) => {
+//   const { taskId } = req.params;
+
+//   const { status, title, description, assignedTo } = req.body;
+
+//   // Build update object dynamically
+//   const updateFields = {};
+
+//   if (status) updateFields.status = status;
+//   if (title) updateFields.title = title;
+//   if (description) updateFields.description = description;
+//   if (assignedTo) updateFields.assignedTo = assignedTo;
+
+//   const task = await Task.findByIdAndUpdate(
+//     taskId,
+//     updateFields,
+//     { new: true }
+//   ).populate("assignedTo", "username"); // ✅ important
+
+//   if (!task) {
+//     throw new ApiError(404, "Task not found");
+//   }
+
+//   return res.status(200).json(
+//     new ApiResponse(200, task, "Task updated successfully")
+//   );
+// });
 const deleteTask = asyncHandler(async (req, res) => {
     const { taskId } = req.params;
 
