@@ -51,7 +51,7 @@ const createTask = asyncHandler(async (req, res) => {
     });
     await task.save();
 
-    return res.status(201).json(new ApiResponse(201, "Task created successfully👍🏻👍🏻", task));
+    return res.status(201).json(new ApiResponse(201, task,"Task created successfully👍🏻👍🏻",));
 });
 
 const updateTask = asyncHandler(async (req, res) => {
