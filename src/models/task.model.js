@@ -1,5 +1,5 @@
 import mongoose,{Schema} from "mongoose";
-import { AvailableTaskStatus,TaskStatusEnum } from "../utils/constants.js";
+import { AvailableTaskStatus,PriorityEnum,TaskStatusEnum } from "../utils/constants.js";
 
 const taskSchema = new Schema({
     title:{
@@ -30,6 +30,12 @@ const taskSchema = new Schema({
         type: String,
         enum: AvailableTaskStatus,
         default: TaskStatusEnum.PENDING
+    },
+
+    priority:{
+        type : String,
+        enum: Priority,
+        default : PriorityEnum.Low
     },
     attachment:{
         type:[{

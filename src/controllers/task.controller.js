@@ -56,7 +56,7 @@ const createTask = asyncHandler(async (req, res) => {
 
 const updateTask = asyncHandler(async (req, res) => {
         const { taskId } = req.params;
-        const { title, description, status, assignedTo } = req.body;
+        const { title, description, status, assignedTo,priority } = req.body;
 
         const task = await Task.findById(taskId);
         if (!task) {
@@ -65,6 +65,7 @@ const updateTask = asyncHandler(async (req, res) => {
         if (title) task.title = title;
         if (description) task.description = description;
         if (status) task.status = status;
+        if (priority) task.priority = priority;
         if (assignedTo) task.assignedTo = new mongoose.Types.ObjectId(assignedTo);
 
         await task.save();
