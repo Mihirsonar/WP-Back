@@ -32,11 +32,6 @@ const taskSchema = new Schema({
         default: TaskStatusEnum.PENDING
     },
 
-    priority:{
-        type : String,
-        enum: Priority,
-        default : PriorityEnum.Low
-    },
     attachment:{
         type:[{
             url:String,
