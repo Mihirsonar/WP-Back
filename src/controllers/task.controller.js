@@ -75,21 +75,21 @@ const createTask = asyncHandler(async (req, res) => {
 const updateTask = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
 
-  const { status, title, description, assignedTo } = req.body;
+  const { status, title, description, assignedTo, dueDate } = req.body;
 
-  // Build update object dynamically
   const updateFields = {};
 
-  if (status) updateFields.status = status;
-  if (title) updateFields.title = title;
-  if (description) updateFields.description = description;
-  if (assignedTo) updateFields.assignedTo = assignedTo;
+  if (status !== undefined) updateFields.status = status;
+  if (title !== undefined) updateFields.title = title;
+  if (description !== undefined) updateFields.description = description;
+  if (assignedTo !== undefined) updateFields.assignedTo = assignedTo;
+  if (dueDate !== undefined) updateFields.dueDate = dueDate;
 
   const task = await Task.findByIdAndUpdate(
     taskId,
     updateFields,
     { new: true }
-  ).populate("assignedTo", "username"); // ✅ important
+  ).populate("assignedTo", "username");
 
   if (!task) {
     throw new ApiError(404, "Task not found");
