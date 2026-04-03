@@ -26,9 +26,12 @@ app.use(async (req, res, next) => {
 app.use(express.json());
 app.use(cookieparser());
 app.use(cors({
-  origin:'https://work-pilot-front.vercel.app',
-  credentials:true
-}))
+  origin: [
+    'https://work-pilot-front.vercel.app', 
+    'http://localhost:5173'
+  ],
+  credentials: true
+}));
 // app.use((req, res, next) => {
 //   const allowedOrigins = [
 //     "http://localhost:5173",
