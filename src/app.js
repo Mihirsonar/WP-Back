@@ -6,7 +6,7 @@ import cookieparser from "cookie-parser";
 import taskRouter from "./routes/task.route.js";
 import connectDB from "./db/connect.js";
 import userRouter from "./routes/user.routes.js"
-
+import cors from "cors"
 const app = express();
 
 let isConnected = false;
@@ -25,35 +25,38 @@ app.use(async (req, res, next) => {
 
 app.use(express.json());
 app.use(cookieparser());
+app.use(cors({
+  origin:'https://work-pilot-front.vercel.app',
+  credentials:true
+}))
+// app.use((req, res, next) => {
+//   const allowedOrigins = [
+//     "http://localhost:5173",
+//     "https://work-pilot-front.vercel.app"
+//   ];
 
-app.use((req, res, next) => {
-  const allowedOrigins = [
-    "http://localhost:5173",
-    "https://work-pilot-front.vercel.app"
-  ];
+//   const origin = req.headers.origin;
 
-  const origin = req.headers.origin;
+//   if (allowedOrigins.includes(origin)) {
+//     res.setHeader("Access-Control-Allow-Origin", origin);
+//   }
 
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
+//   res.setHeader("Access-Control-Allow-Credentials", "true");
+//   res.setHeader(
+//     "Access-Control-Allow-Headers",
+//     "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+//   );
+//   res.setHeader(
+//     "Access-Control-Allow-Methods",
+//     "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+//   );
 
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-  );
+//   if (req.method === "OPTIONS") {
+//     return res.sendStatus(200);
+//   }
 
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
+//   next();
+// });
 
 app.use("/api/v1/healthcheck", healthCheckRouter);
 app.use("/api/v1/auth", authRouter);
