@@ -25,6 +25,7 @@
     "nodemailer": "^8.0.1",
     "nodemon": "^3.1.11",
     "prettier": "^3.8.1",
+    "resend": "^6.12.4",
     "serverless-http": "^4.0.0"
   }
 }

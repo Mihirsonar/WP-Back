@@ -23,6 +23,55 @@ const generateTokens = async (user) => {
 };
 
 
+// const registerUser = asyncHandler(async (req, res) => {
+//   const { username, email, password } = req.body;
+
+//   if (!username || !email || !password) {
+//     throw new ApiError(400, "All fields are required");
+//   }
+
+//   const existingUser = await User.findOne({ email });
+//   if (existingUser) {
+//     throw new ApiError(400, "Email already in use");
+//   }
+
+//   const user = await User.create({
+//     username,
+//     email,
+//     password,
+//     isEmailVerified: false,
+//   });
+
+//   const accessToken = user.generateAuthToken();
+//   // Send email BEFORE response
+//   await sendEmail({
+//     email: user.email,
+//     subject: "Email Verification",
+//     mailgencontent: emailVerificationMail(
+//       user.username,
+//       `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${user._id}`
+//     )
+//   });
+
+//   const options = {
+//     httpOnly: true,
+//     secure: true,
+//     sameSite: "lax",
+//   };
+//   return res.status(201).cookie("accessToken", accessToken, options)
+//   .json(
+//     new ApiResponse(
+//       201,
+//       "User registered successfully. Please verify email.",
+//       {
+//         id: user._id,
+//         username: user.username,
+//         email: user.email,
+//       }
+//     )
+//   );
+// });
+
 const registerUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
 
@@ -43,33 +92,43 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   const accessToken = user.generateAuthToken();
-  // Send email BEFORE response
-  // await sendEmail({
-  //   email: user.email,
-  //   subject: "Email Verification",
-  //   mailgencontent: emailVerificationMail(
-  //     user.username,
-  //     `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${user._id}`
-  //   )
-  // });
 
-  const options = {
+  // Construct the Mailgen verification link
+  const verificationUrl = `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${user._id}`;
+
+  try {
+    // Send email using your newly updated Resend sendEmail function
+    await sendEmail({
+      email: user.email,
+      subject: "Email Verification",
+      mailgencontent: emailVerificationMail(user.username, verificationUrl),
+    });
+  } catch (emailError) {
+    // Log the error but decide if you want to block registration or proceed.
+    // Proceeding allows users to request a resend if delivery fails due to an external Resend issue.
+    console.error("⚠️ Background email delivery failed:", emailError);
+  }
+
+  const cookieOptions = {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
   };
-  return res.status(201).cookie("accessToken", accessToken, options)
-  .json(
-    new ApiResponse(
-      201,
-      "User registered successfully. Please verify email.",
-      {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-      }
-    )
-  );
+
+  return res
+    .status(201)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .json(
+      new ApiResponse(
+        201,
+        "User registered successfully. Please verify email.",
+        {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+        }
+      )
+    );
 });
 
 
