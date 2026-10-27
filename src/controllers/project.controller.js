@@ -5,13 +5,16 @@ import { ApiResponse } from "../utils/Api_response.js";
 import { ApiError } from "../utils/Api_Err.js";
 import { asyncHandler } from "../utils/async_Handler.js";
 import mongoose from "mongoose";
+import crypto from "crypto";
 import { USerRoleEnum } from "../utils/constants.js";
 
 const getProjects = asyncHandler(async (req, res) => {
   const projects = await ProjectMember.aggregate([
     {
       $match: {
-        user: new mongoose.Types.ObjectId(req.user._id)    }
+        user: new mongoose.Types.ObjectId(req.user._id),
+        status: "accepted"
+      }
     },
     {
       $lookup: {
@@ -21,32 +24,35 @@ const getProjects = asyncHandler(async (req, res) => {
         as: "project",
         pipeline: [
           {
-  $lookup: {
-    from: "projectmembers",
-    localField: "_id",
-    foreignField: "project",
-    as: "projectmembers",
-    pipeline: [
-      {
-        $lookup: {
-          from: "users",
-          localField: "user",
-          foreignField: "_id",
-          as: "user"
-        }
-      },
-      {
-        $unwind: "$user"
-      },
-      {
-        $project: {
-          _id: "$user._id",
-          username: "$user.username"
-        }
-      }
-    ]
-  }
-},
+            $lookup: {
+              from: "projectmembers",
+              localField: "_id",
+              foreignField: "project",
+              as: "projectmembers",
+              pipeline: [
+                {
+                  $match: { status: "accepted" }
+                },
+                {
+                  $lookup: {
+                    from: "users",
+                    localField: "user",
+                    foreignField: "_id",
+                    as: "user"
+                  }
+                },
+                {
+                  $unwind: "$user"
+                },
+                {
+                  $project: {
+                    _id: "$user._id",
+                    username: "$user.username"
+                  }
+                }
+              ]
+            }
+          },
           {
             $addFields: {
               totalMembers: {
@@ -100,6 +106,9 @@ const getProjectsById = asyncHandler(async (req, res) => {
         as: "members",
         pipeline: [
           {
+            $match: { status: "accepted" }
+          },
+          {
             $lookup: {
               from: "users",
               localField: "user",
@@ -138,7 +147,7 @@ const getProjectsById = asyncHandler(async (req, res) => {
 });
 
 const creatProject = asyncHandler(async (req, res) => {
-  const { name, description, members = [] } = req.body;
+  const { name, description } = req.body;
 
   const project = await Project.create({
     name,
@@ -146,22 +155,13 @@ const creatProject = asyncHandler(async (req, res) => {
     createdBy: new mongoose.Types.ObjectId(req.user._id)
   });
 
- 
+  // The creator is automatically an accepted admin member
   await ProjectMember.create({
     user: req.user._id,
     project: project._id,
-    role: USerRoleEnum.ADMIN
+    role: USerRoleEnum.ADMIN,
+    status: "accepted"
   });
-
-  const memberDocs = members.map(userId => ({
-    user: new mongoose.Types.ObjectId(userId),
-    project: project._id,
-    role: USerRoleEnum.MEMBER
-  }));
-
-  if (memberDocs.length > 0) {
-    await ProjectMember.insertMany(memberDocs);
-  }
 
   return res.status(201).json(
     new ApiResponse(201, project, "Project Created Successfully!")
@@ -204,6 +204,10 @@ const deleteProject = asyncHandler (async (req,res)=>{
         if(!project){
         throw new ApiError(404,"Project not found...")
     }
+
+    // Also remove all project members when project is deleted
+    await ProjectMember.deleteMany({ project: new mongoose.Types.ObjectId(projectId) });
+
     return res
     .status (200)
     .json(
@@ -216,41 +220,87 @@ const deleteProject = asyncHandler (async (req,res)=>{
 
 });
 
-const addMemberToProject = asyncHandler (async (req,res)=>{
-    const {email,role} = req.body;
-    const {projectId} = req.params;
+// Generate a shareable invitation link for a project
+const generateInviteLink = asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+    const { role } = req.body;
 
-    const user = await User.findOne({email});
-
-    if(!user){
-        throw new ApiError(404,"User not found...")
-    }
     const project = await Project.findById(projectId);
+    if (!project) {
+        throw new ApiError(404, "Project not found...");
+    }
 
-    if(!project){
-        throw new ApiError(404,"Project not found...")
-    }
-    const existingMember = await ProjectMember.findOne({
-        user : new mongoose.Types.ObjectId(user._id),
-        project : new mongoose.Types.ObjectId(projectId)
-    })
-    if(existingMember){
-        throw new ApiError(400,"User is already a member of the project...")
-    }
-    const projectMember = await ProjectMember.create({
-        user : new mongoose.Types.ObjectId(user._id),
-        project : new mongoose.Types.ObjectId(projectId),
-        role : role || USerRoleEnum.MEMBER
-    })
+    // Generate a unique invite token
+    const inviteToken = crypto.randomBytes(32).toString("hex");
+
+    // Store the invitation as a pending record with no specific user yet
+    // We use a placeholder ObjectId — this record acts as the "invite slot"
+    await ProjectMember.create({
+        user: req.user._id, // temporarily store the inviter; will be replaced on accept
+        project: new mongoose.Types.ObjectId(projectId),
+        role: role || USerRoleEnum.MEMBER,
+        status: "pending",
+        inviteToken: inviteToken
+    });
+
+    // Build the invite URL (frontend URL that the accepting user will visit)
+    const frontendBaseUrl = process.env.CORS_ORIGIN || "http://localhost:5173";
+    const inviteUrl = `${frontendBaseUrl}/invite/${projectId}/${inviteToken}`;
+
     return res
-    .status (201)
-    .json(
-        new ApiResponse(
-            201,
-            projectMember,
-            "Member added to project Succcefully!!!"
-        )
-    )   
+        .status(201)
+        .json(
+            new ApiResponse(
+                201,
+                { inviteUrl, inviteToken },
+                "Invitation link generated successfully!"
+            )
+        );
+});
+
+// Accept an invitation using a token (the logged-in user joins the project)
+const acceptInvitation = asyncHandler(async (req, res) => {
+    const { projectId, inviteToken } = req.params;
+
+    // Find the pending invitation record
+    const invitation = await ProjectMember.findOne({
+        project: new mongoose.Types.ObjectId(projectId),
+        inviteToken: inviteToken,
+        status: "pending"
+    });
+
+    if (!invitation) {
+        throw new ApiError(400, "Invalid or expired invitation link");
+    }
+
+    // Check if this user is already an accepted member
+    const existingMember = await ProjectMember.findOne({
+        user: new mongoose.Types.ObjectId(req.user._id),
+        project: new mongoose.Types.ObjectId(projectId),
+        status: "accepted"
+    });
+
+    if (existingMember) {
+        // Delete the pending invitation since user is already a member
+        await ProjectMember.findByIdAndDelete(invitation._id);
+        throw new ApiError(400, "You are already a member of this project");
+    }
+
+    // Update the invitation: assign the accepting user and mark as accepted
+    invitation.user = req.user._id;
+    invitation.status = "accepted";
+    invitation.inviteToken = undefined;
+    await invitation.save();
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                invitation,
+                "Invitation accepted! You are now a member of this project."
+            )
+        );
 });
 
 const getProjectMembers = asyncHandler (async (req,res)=>{
@@ -264,7 +314,8 @@ const getProjectMembers = asyncHandler (async (req,res)=>{
  const projectMembers = await ProjectMember.aggregate([
   {
     $match: {
-      project: new mongoose.Types.ObjectId(projectId)
+      project: new mongoose.Types.ObjectId(projectId),
+      status: "accepted"
     }
   },
   {
@@ -314,12 +365,14 @@ const updateMemberRole = asyncHandler (async (req,res)=>{
     const projectMember = await ProjectMember.findOneAndUpdate(
         {
             project : new mongoose.Types.ObjectId(projectId),
-            user : new mongoose.Types.ObjectId(memberId)},
+            user : new mongoose.Types.ObjectId(memberId),
+            status: "accepted"
+        },
         {
             role
         },
         {
-            new : true
+            returnDocument: 'after'
         }
     )
 
@@ -367,7 +420,8 @@ export {
     deleteMember,
     updateMemberRole,
     getProjectMembers,
-    addMemberToProject,
+    generateInviteLink,
+    acceptInvitation,
     deleteProject,
     updateProject,
     creatProject,

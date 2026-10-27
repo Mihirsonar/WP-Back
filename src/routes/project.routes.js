@@ -7,7 +7,8 @@ import {
     deleteMember,
     updateMemberRole,
     getProjectMembers,
-    addMemberToProject,
+    generateInviteLink,
+    acceptInvitation,
     deleteProject,
     updateProject,
     creatProject,
@@ -33,13 +34,18 @@ router.route("/:projectId")
 .delete(validationProjectPermission([USerRoleEnum.ADMIN]), deleteProject);
 
 router.route("/:projectId/members")
-.get(validationProjectPermission(AvailableRoles), getProjectMembers)
+.get(validationProjectPermission(AvailableRoles), getProjectMembers);
+
+// Generate a shareable invitation link (admin only)
+router.route("/:projectId/invite")
 .post(
   validationProjectPermission([USerRoleEnum.ADMIN]),
-  addMemberValidation(),
-  validate,
-  addMemberToProject
+  generateInviteLink
 );
+
+// Accept an invitation link (any logged-in user with the token)
+router.route("/:projectId/invite/:inviteToken/accept")
+.post(acceptInvitation);
 
 router.route("/:projectId/members/:userId")
 .delete(validationProjectPermission([USerRoleEnum.ADMIN]), deleteMember)

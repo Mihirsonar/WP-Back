@@ -1,5 +1,6 @@
 import mongoose,{Schema} from "mongoose";
 import { AvailableRoles,USerRoleEnum } from "../utils/constants.js";
+import crypto from "crypto";
 
 const projectMemberSchema = new Schema({
     user:{
@@ -16,6 +17,14 @@ const projectMemberSchema = new Schema({
     type: String,
     enum: AvailableRoles,
     default: USerRoleEnum.MEMBER
+   },
+   status:{
+    type: String,
+    enum: ['pending', 'accepted'],
+    default: 'accepted'
+   },
+   inviteToken:{
+    type: String
    }
 },{
     timestamps: true

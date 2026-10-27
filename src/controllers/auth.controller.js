@@ -183,7 +183,7 @@ const logout = asyncHandler (async(req,res)=>{
         refreshToken:""
       }
     },{
-      new: true,
+      returnDocument: 'after',
     }
   );
 

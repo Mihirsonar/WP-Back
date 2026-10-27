@@ -1,229 +1,176 @@
 import User from "../models/user.model.js";
 import { Project } from "../models/project.model.js";
 import { Task } from "../models/task.model.js";
-import {SubTask} from "../models/subtask.model.js";
+import { SubTask } from "../models/subtask.model.js";
+import { List } from "../models/list.model.js";
 import { ApiResponse } from "../utils/Api_response.js";
 import { ApiError } from "../utils/Api_Err.js";
 import { asyncHandler } from "../utils/async_Handler.js";
 import mongoose from "mongoose";
-import { USerRoleEnum ,AvailableRoles} from "../utils/constants.js";
 
 const getTasks = asyncHandler(async (req, res) => {
-        const project = req.params.projectId;
+  const { projectId } = req.params;
+  if (!projectId) throw new ApiError(400, "Project ID is required");
 
-    if(!project) {
-        throw new ApiError(400, "Project ID is required");
-    }
+  const tasks = await Task.find({ project: new mongoose.Types.ObjectId(projectId) })
+    .populate("assignedTo", "username email avatar")
+    .populate("list", "title color position")
+    .sort({ position: 1 });
 
-   const tasks = await Task.find({
-        project : new mongoose.Types.ObjectId(project)
-    }).populate("assignedTo","name email");
-    return res.status(200).json(new ApiResponse(200, "Tasks fetched successfully👍🏻👍🏻",tasks));
+  return res.status(200).json(new ApiResponse(200, "Tasks fetched", tasks));
 });
 
 const createTask = asyncHandler(async (req, res) => {
-    const { title, description, status,assignedTo } = req.body;
-    const {projectId} = req.params;
+  const { title, description, status, assignedTo, list: listId, labels, dueDate } = req.body;
+  const { projectId } = req.params;
 
-    const project = await Project.findById(projectId);
-    if (!project) {
-        throw new ApiError(404, "Project not found");
-    }
+  const project = await Project.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
 
-    const files = req.files || [];
+  let targetList = listId;
+  if (!targetList) {
+    const defaultList = await List.findOne({ project: projectId }).sort({ position: 1 });
+    if (defaultList) targetList = defaultList._id;
+  }
 
-    const attachments =files.map((file)=>{
-        return {
-            url: `${process.env.BASE_URL}/imgs/${file.originalname}`,
-            mimetype: file.mimetype,
-            size: file.size
-        }
-    })
+  const maxPos = await Task.findOne({ list: targetList }).sort({ position: -1 });
+  const position = maxPos ? maxPos.position + 1 : 0;
 
-    const task = new Task({
-        title,
-        description,
-        project : new mongoose.Types.ObjectId(projectId),
-        status,
-        assignedTo: assignedTo ? new mongoose.Types.ObjectId(assignedTo) : null,
-        assignedBy: new mongoose.Types.ObjectId(req.user._id),
-        attachments: []
-    });
-    await task.save();
+  const task = await Task.create({
+    title,
+    description: description || "",
+    project: new mongoose.Types.ObjectId(projectId),
+    list: targetList ? new mongoose.Types.ObjectId(targetList) : undefined,
+    position,
+    status: status || "todo",
+    assignedTo: assignedTo ? new mongoose.Types.ObjectId(assignedTo) : undefined,
+    assignedBy: new mongoose.Types.ObjectId(req.user._id),
+    labels: labels || [],
+    dueDate,
+  });
 
-    return res.status(201).json(new ApiResponse(201, task,"Task created successfully👍🏻👍🏻",));
+  const populated = await Task.findById(task._id)
+    .populate("assignedTo", "username email avatar")
+    .populate("list", "title color position");
+
+  return res.status(201).json(new ApiResponse(201, "Task created", populated));
 });
-
-// const updateTask = asyncHandler(async (req, res) => {
-//         const { taskId } = req.params;
-//         const { title, description, status, assignedTo } = req.body;
-
-//         const task = await Task.findById(taskId);
-//         if (!task) {
-//             throw new ApiError(404, "Task not found");
-//         }
-//         if (title) task.title = title;
-//         if (description) task.description = description;
-//         if (status) task.status = status;
-//         // if (priority) task.priority = priority;
-//         if (assignedTo) task.assignedTo = new mongoose.Types.ObjectId(assignedTo);
-
-//         await task.save();
-//         return res.status(200).json(new ApiResponse(200, task, "Task updated successfully👍🏻👍🏻"));
-// });
 
 const updateTask = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
+  const { status, title, description, assignedTo, dueDate, list, position, labels, coverColor } = req.body;
 
-  const { status, title, description, assignedTo, dueDate } = req.body;
+  const fields = {};
+  if (status !== undefined) fields.status = status;
+  if (title !== undefined) fields.title = title;
+  if (description !== undefined) fields.description = description;
+  if (assignedTo !== undefined) fields.assignedTo = assignedTo;
+  if (dueDate !== undefined) fields.dueDate = dueDate;
+  if (list !== undefined) fields.list = list;
+  if (position !== undefined) fields.position = position;
+  if (labels !== undefined) fields.labels = labels;
+  if (coverColor !== undefined) fields.coverColor = coverColor;
 
-  const updateFields = {};
+  const task = await Task.findByIdAndUpdate(taskId, fields, { returnDocument: 'after' })
+    .populate("assignedTo", "username email avatar")
+    .populate("list", "title color position");
 
-  if (status !== undefined) updateFields.status = status;
-  if (title !== undefined) updateFields.title = title;
-  if (description !== undefined) updateFields.description = description;
-  if (assignedTo !== undefined) updateFields.assignedTo = assignedTo;
-  if (dueDate !== undefined) updateFields.dueDate = dueDate;
-
-  const task = await Task.findByIdAndUpdate(
-    taskId,
-    updateFields,
-    { new: true }
-  ).populate("assignedTo", "username");
-
-  if (!task) {
-    throw new ApiError(404, "Task not found");
-  }
-
-  return res.status(200).json(
-    new ApiResponse(200, task, "Task updated successfully")
-  );
+  if (!task) throw new ApiError(404, "Task not found");
+  return res.status(200).json(new ApiResponse(200, "Task updated", task));
 });
-const deleteTask = asyncHandler(async (req, res) => {
-    const { taskId } = req.params;
 
-    const task = await Task.findById(taskId);
-    if (!task) {
-        throw new ApiError(404, "Task not found");
-    }
-    await task.remove();
-    return res.status(200).json(new ApiResponse(200, null, "Task deleted successfully👍🏻👍🏻"));
+const deleteTask = asyncHandler(async (req, res) => {
+  const { taskId } = req.params;
+  const task = await Task.findByIdAndDelete(taskId);
+  if (!task) throw new ApiError(404, "Task not found");
+  return res.status(200).json(new ApiResponse(200, "Task deleted", null));
 });
 
 const getTaskById = asyncHandler(async (req, res) => {
+  const { taskId } = req.params;
 
-    const { taskId } = req.params;
-
-    const task = await Task.aggregate([
-        {
-            $match: {
-                _id: new mongoose.Types.ObjectId(taskId)
-            }
-        },
-        {
+  const task = await Task.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(taskId) } },
+    {
+      $lookup: {
+        from: "users", localField: "assignedTo", foreignField: "_id", as: "assignedTo",
+        pipeline: [{ $project: { _id: 1, username: 1, avatar: 1, email: 1 } }]
+      }
+    },
+    {
+      $lookup: {
+        from: "lists", localField: "list", foreignField: "_id", as: "list",
+        pipeline: [{ $project: { _id: 1, title: 1, color: 1, position: 1 } }]
+      }
+    },
+    {
+      $lookup: {
+        from: "subtasks", localField: "_id", foreignField: "task", as: "subtasks",
+        pipeline: [
+          {
             $lookup: {
-                from: "users",
-                localField: "assignedTo",
-                foreignField: "_id",
-                as: "assignedTo",
-                pipeline: [
-                    {
-                        $project: {
-                            _id: 1,
-                            username: 1,
-                            avatar: 1
-                        }
-                    }
-                ]
+              from: "users", localField: "createdBy", foreignField: "_id", as: "createdBy",
+              pipeline: [{ $project: { _id: 1, username: 1, avatar: 1 } }]
             }
-        },
-        {
-            $lookup: {
-                from: "subtasks",
-                localField: "_id",
-                foreignField: "task",
-                as: "subtasks",
-                pipeline: [
-                    {
-                        $lookup: {
-                            from: "users",
-                            localField: "createdBy",
-                            foreignField: "_id",
-                            as: "createdBy",
-                            pipeline: [
-                                {
-                                    $project: {
-                                        _id: 1,
-                                        username: 1,
-                                        avatar: 1
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        $addFields: {
-                            createdBy: { $arrayElemAt: ["$createdBy", 0] }
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            $addFields: {
-                assignedTo: { $arrayElemAt: ["$assignedTo", 0] }
-            }
-        }
-    ]);
+          },
+          { $addFields: { createdBy: { $arrayElemAt: ["$createdBy", 0] } } }
+        ]
+      }
+    },
+    { $addFields: { assignedTo: { $arrayElemAt: ["$assignedTo", 0] } } },
+    { $addFields: { list: { $arrayElemAt: ["$list", 0] } } }
+  ]);
 
-if(!task || task.length === 0) {
-    throw new ApiError(404, "Task not found");
-}
-return res.status(200).json(new ApiResponse(200, task[0], "Task fetched successfully👍🏻👍🏻"));
+  if (!task || task.length === 0) throw new ApiError(404, "Task not found");
+  return res.status(200).json(new ApiResponse(200, "Task fetched", task[0]));
+});
+
+const reorderTasks = asyncHandler(async (req, res) => {
+  const { tasks } = req.body;
+  const ops = tasks.map((t) => ({
+    updateOne: {
+      filter: { _id: new mongoose.Types.ObjectId(t._id) },
+      update: { list: new mongoose.Types.ObjectId(t.list), position: t.position },
+    },
+  }));
+  await Task.bulkWrite(ops);
+  return res.status(200).json(new ApiResponse(200, "Tasks reordered", null));
 });
 
 const createSubTask = asyncHandler(async (req, res) => {
-    const { title, description, status } = req.body;
-    const { taskId } = req.params;
-    const task = await Task.findById(taskId);
-    if (!task) {
-        throw new ApiError(404, "Task not found");
-    }
-    const subtask = new subTask({
-        title,
-        description,
-        status,
-        task: new mongoose.Types.ObjectId(taskId)
-    });
-    await subtask.save();
-    return res.status(201).json(new ApiResponse(201, subtask, "SubTask created successfully👍🏻👍🏻"));
+  const { title } = req.body;
+  const { taskId } = req.params;
+  const task = await Task.findById(taskId);
+  if (!task) throw new ApiError(404, "Task not found");
+
+  const subtask = await SubTask.create({
+    title,
+    task: new mongoose.Types.ObjectId(taskId),
+    createdBy: new mongoose.Types.ObjectId(req.user._id),
+  });
+  return res.status(201).json(new ApiResponse(201, "SubTask created", subtask));
 });
 
 const updateSubTask = asyncHandler(async (req, res) => {
-        const { subTaskId } = req.params;
-        const { title, description, status } = req.body;
+  const { subTaskId } = req.params;
+  const { title, isCompleted } = req.body;
+  const fields = {};
+  if (title !== undefined) fields.title = title;
+  if (isCompleted !== undefined) fields.isCompleted = isCompleted;
 
-        const subtask = await subTask.findById(subTaskId);
-        if (!subtask) {
-            throw new ApiError(404, "SubTask not found");
-        }
-        if (title) subtask.title = title;
-        if (description) subtask.description = description;
-        if (status) subtask.status = status;
-        await subtask.save();
-        return res.status(200).json(new ApiResponse(200, subtask, "SubTask updated successfully👍🏻👍🏻"));
+  const subtask = await SubTask.findByIdAndUpdate(subTaskId, fields, { returnDocument: 'after' });
+  if (!subtask) throw new ApiError(404, "SubTask not found");
+  return res.status(200).json(new ApiResponse(200, "SubTask updated", subtask));
 });
 
 const deleteSubTask = asyncHandler(async (req, res) => {
-    const { subTaskId } = req.params;
-
-    const subtask = await subTask.findById(subTaskId);
-    if (!subtask) {
-        throw new ApiError(404, "SubTask not found");
-    }
-
-    await subtask.remove();
-    return res.status(200).json(new ApiResponse(200, null, "SubTask deleted successfully👍🏻👍🏻"));
+  const { subTaskId } = req.params;
+  const subtask = await SubTask.findByIdAndDelete(subTaskId);
+  if (!subtask) throw new ApiError(404, "SubTask not found");
+  return res.status(200).json(new ApiResponse(200, "SubTask deleted", null));
 });
 
-export { getTasks, createTask, updateTask, deleteTask, getTaskById, createSubTask, updateSubTask, deleteSubTask };
+export {
+  getTasks, createTask, updateTask, deleteTask, getTaskById,
+  reorderTasks, createSubTask, updateSubTask, deleteSubTask
+};
